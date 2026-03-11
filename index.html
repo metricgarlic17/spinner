@@ -1,0 +1,268 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Lucky Spin Wheel</title>
+
+    <style>
+      body {
+        font-family: Arial;
+        text-align: center;
+        background: #f2f2f2;
+        margin-top: 40px;
+      }
+
+      .container {
+        width: 420px;
+        margin: auto;
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
+      }
+
+      canvas {
+        margin-top: 20px;
+      }
+
+      input {
+        padding: 10px;
+        width: 80%;
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        margin: 5px;
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        background: #4caf50;
+        color: white;
+      }
+
+      button:disabled {
+        background: gray;
+      }
+
+      #result {
+        font-size: 22px;
+        margin-top: 15px;
+        font-weight: bold;
+      }
+
+      #status {
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h2>🎡 Lucky Spin Wheel</h2>
+
+      <p>Enter the email you used in the survey</p>
+
+      <input id="email" type="email" placeholder="Enter your email" />
+
+      <br />
+
+      <button onclick="verify()">Verify Email</button>
+
+      <button onclick="spin()" id="spinBtn" disabled>Spin</button>
+
+      <p id="status"></p>
+
+      <canvas id="wheel" width="320" height="320"></canvas>
+
+      <p id="result"></p>
+    </div>
+
+    <script>
+      const SCRIPT_URL = "YOUR_SCRIPT_URL";
+
+      const segments = [
+        "Try Again",
+        "Almost!",
+        "Better luck next time",
+        "Try Again",
+        "$2 Prize",
+        "Oops!",
+        "Not this time",
+        "Try Again",
+      ];
+
+      const colors = [
+        "#ff7675",
+        "#74b9ff",
+        "#ffeaa7",
+        "#55efc4",
+        "#fd79a8",
+        "#81ecec",
+        "#fab1a0",
+        "#a29bfe",
+      ];
+
+      const canvas = document.getElementById("wheel");
+      const ctx = canvas.getContext("2d");
+
+      let angle = 0;
+
+      function drawWheel() {
+        const arc = (Math.PI * 2) / segments.length;
+
+        for (let i = 0; i < segments.length; i++) {
+          ctx.beginPath();
+
+          ctx.fillStyle = colors[i];
+
+          ctx.moveTo(160, 160);
+
+          ctx.arc(160, 160, 150, arc * i, arc * (i + 1));
+
+          ctx.fill();
+
+          ctx.save();
+
+          ctx.fillStyle = "black";
+          ctx.translate(160, 160);
+          ctx.rotate(arc * (i + 0.5));
+
+          ctx.fillText(segments[i], 70, 5);
+
+          ctx.restore();
+        }
+      }
+
+      drawWheel();
+
+      function verify() {
+        var email = document.getElementById("email").value.trim();
+
+        if (!email) {
+          document.getElementById("status").innerHTML = "Enter email first";
+          return;
+        }
+
+        document.getElementById("status").innerHTML = "Checking...";
+
+        fetch(SCRIPT_URL + "?email=" + encodeURIComponent(email))
+          .then((res) => res.text())
+          .then((data) => {
+            if (data === "valid") {
+              document.getElementById("status").innerHTML = "Email verified ✔";
+
+              document.getElementById("spinBtn").disabled = false;
+            } else {
+              document.getElementById("status").innerHTML =
+                "Email not found. Submit form first.";
+            }
+          });
+      }
+
+      function spin() {
+        var email = document.getElementById("email").value;
+
+        if (localStorage.getItem("spin_" + email)) {
+          alert("You already used your spin.");
+          return;
+        }
+
+        document.getElementById("spinBtn").disabled = true;
+
+        let spinAngle = Math.random() * 2000 + 3000;
+
+        let start = null;
+
+        function animate(timestamp) {
+          if (!start) start = timestamp;
+
+          let progress = timestamp - start;
+
+          angle = (spinAngle * progress) / 3000;
+
+          ctx.clearRect(0, 0, 320, 320);
+
+          ctx.save();
+
+          ctx.translate(160, 160);
+
+          ctx.rotate((angle * Math.PI) / 180);
+
+          ctx.translate(-160, -160);
+
+          drawWheel();
+
+          ctx.restore();
+
+          if (progress < 3000) {
+            requestAnimationFrame(animate);
+          } else {
+            finishSpin();
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      function finishSpin() {
+        var email = document.getElementById("email").value;
+
+        let winChance = Math.random();
+
+        let prize;
+
+        if (winChance < 0.002) {
+          prize = "$2 Prize";
+
+          confetti();
+        } else {
+          let funMessages = [
+            "Try Again!",
+            "Almost!",
+            "Better luck next time",
+            "Not this time",
+            "So close!",
+          ];
+
+          prize = funMessages[Math.floor(Math.random() * funMessages.length)];
+        }
+
+        document.getElementById("result").innerHTML = "Result: " + prize;
+
+        localStorage.setItem("spin_" + email, "true");
+      }
+
+      function confetti() {
+        for (let i = 0; i < 100; i++) {
+          let div = document.createElement("div");
+
+          div.style.position = "fixed";
+
+          div.style.width = "6px";
+
+          div.style.height = "6px";
+
+          div.style.background = "red";
+
+          div.style.left = Math.random() * window.innerWidth + "px";
+
+          div.style.top = "-10px";
+
+          document.body.appendChild(div);
+
+          let fall = setInterval(() => {
+            div.style.top = parseInt(div.style.top) + 5 + "px";
+
+            if (parseInt(div.style.top) > window.innerHeight) {
+              clearInterval(fall);
+
+              div.remove();
+            }
+          }, 20);
+        }
+      }
+    </script>
+  </body>
+</html>
